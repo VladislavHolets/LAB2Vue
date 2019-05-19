@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <title>Сохранение курсов в LocalStorage</title>
+    <script src="vue.min.js"></script>
+    <link href="bootstrap.min.css" rel="stylesheet" />
+    <style>
+        span {
+            color: red;
+            font-weight: bold;
+        }
+
+        span.isPassed {
+            color: green;
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="page-header">
+        <h1>Планировщик курсов</h1>
+        <h3>Пользователь: {{user}}. Количество курсов - {{courses.length}}</h3>
+    </div>
+    <div class="panel">
+        <div class="input-group">
+            <input class="form-control" v-model="courseName" />
+            <span class="input-group-btn">
+                <button class="btn btn-default" v-on:click="addCourse()">Добавить</button>
+            </span>
+        </div>
+        <div class="input-group">
+            <br />
+            <input type="search" placeholder="Поиск ..." class="form-control" v-model="searchText" />
+            <select v-model="searchFlag">
+                <option value="">Фильтр</option>
+                <option value="no">Курс не пройден</option>
+                <option value="yes">Курс пройден</option>
+            </select>
+        </div> 
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th v-on:click="toggleSort('name')">Курс</th>
+                    <th></th>
+                    <th v-on:click="toggleSort('passed')">Пройден</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="(course, index) in list">
+                    <td v-html="course.name"></td>
+                    <td><input type="checkbox" v-model="course.passed" v-on:change="saveToLocal()" /></td>
+                    <td>
+                        <span v-bind:class="{isPassed: course.passed}">
+                            {{showText(course.passed)}}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-danger" v-on:click="deleteCourse(course.index)">Удалить курс</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+
+    let model = {
+        user: "Eugene",
+        courseName: "",
+        searchText: "",
+        searchFlag: "",
+        courses: [],
+		sort: {
+			name:"",
+            reverse: false
+        }
+    };
+
+    if (localStorage.courses != undefined) {
+        model.courses = JSON.parse(localStorage.courses);
+    }
+
+    let vm = new Vue({
+        el: '.container',
+        
+        data: model,
+        
+        methods: {
+            addCourse() {
+                let text = this.courseName.trim();
+                if (text.length != 0) {
+                    this.courses.push({name: text, passed: false});
+                    this.courseName = "";
+                }
+                this.saveToLocal();
+            },
+
+            showText: (passed) => passed ? "Да" : "Нет",
+
+            deleteCourse(index) {
+                this.courses.splice(index, 1);
+                this.saveToLocal();
+            },
+
+            saveToLocal() {
+                localStorage.courses = JSON.stringify(this.courses);
+            },
+            toggleSort(name) {
+                if (this.sort.name == name) {
+                    if (this.sort.reverse) {
+                        this.sort = {
+							name: "",
+							reverse: false
+							};
+					} else {
+						this.sort.reverse = true;
+					}
+                } else {
+					this.sort = {
+						name: name,
+						reverse: false
+					};
+				}
+            }
+        },
+
+        computed: {
+            list() {
+                let list = this.filteredList;
+				let sort = this.sort;
+                console.log(sort);
+                if (sort.name !== '') {
+                    list = list.sort((a,b) => {
+						return (sort.reverse==true && (a[sort.name] > b[sort.name]) 
+						 ||     sort.reverse==false && (a[sort.name] < b[sort.name]))?-1:
+						 (a[sort.name] == b[sort.name])?0:1;
+                    });
+                }
+
+                return list;
+            },
+            filteredList() {
+                let text = this.searchText, flag;
+                if (this.searchFlag) flag = this.searchFlag == 'yes' ? true : false;
+
+                return this.courses.map(function(item, index){
+                    item.index = index;
+                    return item;
+                }).filter(function(item){
+                    let result;
+
+                    if (text==="") result = true;
+                    else result = item.name.indexOf(text) > -1;
+
+                    if (flag !== undefined) result = result && item.passed == flag;
+
+                    return result;
+                });
+            }
+        }
+
+    });
+</script>
+</body>
+</html>
